@@ -1,0 +1,16 @@
+.env
+mosquitto/passwd
+
+# Java
+*/target/
+.idea/
+*.iml
+.vscode/
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+
+# gateway runtime data (outbox database)
+gateway/data/
