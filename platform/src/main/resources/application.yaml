@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: machine-telemetry-platform
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/telemetry}
+    username: ${DB_USER:telemetry}
+    password: ${DB_PASSWORD:telemetry}
+  flyway:
+    locations: classpath:db/migration
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+platform:
+  api-key: ${PLATFORM_API_KEY:}
+  zone: America/Sao_Paulo
+  mqtt:
+    enabled: true
+    uri: ${MQTT_URI:tcp://localhost:1883}
+    client-id: machine-telemetry-platform
+    username: ${MQTT_USER:}
+    password: ${MQTT_PASSWORD:}
+    topic-prefix: mt
+  ttn:
+    webhook-token: ${TTN_WEBHOOK_TOKEN:}
+    application-id: ${TTN_APPLICATION_ID:}

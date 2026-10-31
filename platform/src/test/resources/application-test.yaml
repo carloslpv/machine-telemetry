@@ -1,0 +1,7 @@
+platform:
+  api-key: test-key-0123456789
+  mqtt:
+    enabled: false
+  ttn:
+    webhook-token: ttn-token
+    application-id: tcc-carlos
