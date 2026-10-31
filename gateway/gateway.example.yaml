@@ -1,0 +1,71 @@
+# Gateway of one site. Values like ${NAME:default} come from environment variables.
+id: ${GATEWAY_ID:gw-joacaba-01}
+site: ${GATEWAY_SITE:joacaba}
+data-dir: ${GATEWAY_DATA_DIR:data}
+
+machines:
+  # Read through the CPU's OPC UA server (TIA Portal: activate the OPC UA server and make DB_Telemetria accessible).
+  - id: ENS-01
+    source:
+      type: opcua
+      endpoint: ${PLC1_ENDPOINT:opc.tcp://localhost:4840}
+      namespace-uri: http://www.siemens.com/simatic-s7-opcua
+      username: ${PLC1_USER:}
+      password: ${PLC1_PASSWORD:}
+    poll-interval: 250ms
+    telemetry-interval: 10s
+    signals:
+      running: { address: '"DB_Telemetria"."Running"' }
+      fault: { address: '"DB_Telemetria"."Fault"' }
+      fault-code: { address: '"DB_Telemetria"."FaultCode"' }
+      good-count: { address: '"DB_Telemetria"."GoodCount"', type: DINT }
+      reject-count: { address: '"DB_Telemetria"."RejectCount"', type: DINT }
+    analogs:
+      motor-current: { address: '"DB_Telemetria"."MotorCurrent"' }
+      speed: { address: '"DB_Telemetria"."Speed"' }
+      # raw analog input scaled at the edge, the SCALE_X of the ladder program
+      motor-temp:
+        address: '"DB_Telemetria"."MotorTempRaw"'
+        scale: { raw-min: 0, raw-max: 27648, min: 0, max: 150 }
+
+  # Read over S7 PUT/GET (TIA Portal: "Permit access with PUT/GET", DB without optimized block access).
+  - id: ENS-02
+    source:
+      type: s7
+      host: ${PLC2_HOST:localhost}
+      port: ${PLC2_PORT:102}
+      rack: 0
+      slot: 1
+    signals:
+      running: { address: DB1.DBX0.0 }
+      fault: { address: DB1.DBX0.1 }
+      fault-code: { address: DB1.DBW2, type: INT }
+      good-count: { address: DB1.DBD4, type: DINT }
+      reject-count: { address: DB1.DBD8, type: DINT }
+    analogs:
+      motor-current: { address: DB1.DBD12, type: REAL }
+      speed: { address: DB1.DBD16, type: REAL }
+      motor-temp:
+        address: DB1.DBW24
+        type: INT
+        scale: { raw-min: 0, raw-max: 27648, min: 0, max: 150 }
+
+uplink:
+  type: ${UPLINK:mqtt}
+  mqtt:
+    uri: ${MQTT_URI:tcp://localhost:1883}
+    username: ${MQTT_USER:}
+    password: ${MQTT_PASSWORD:}
+    topic-prefix: mt
+    # about a week of telemetry for two machines at 10 s
+    outbox-limit: 150000
+  lorawan:
+    device: ${LORA_DEVICE:/dev/ttyUSB0}
+    baud: 9600
+    # check the send command and the answers in your module's AT manual
+    send-template: "AT+SENDB={port}:{hex}"
+    success-pattern: "^OK$"
+    success-count: 1
+    min-interval: 6s
+    interval: 5m
+    analogs: [motor-current, motor-temp]
