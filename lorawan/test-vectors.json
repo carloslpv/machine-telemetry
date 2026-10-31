@@ -1,0 +1,103 @@
+{
+  "description": "Uplink payload v1 test vectors. The gateway encoder, the TTN formatter and the platform decoder are all tested against this file.",
+  "analogs": [
+    "motor-current",
+    "motor-temp"
+  ],
+  "vectors": [
+    {
+      "name": "running, no fault",
+      "state": "RUNNING",
+      "faultCode": 0,
+      "goodCount": 1234,
+      "rejectCount": 17,
+      "secondsInState": 300,
+      "analogs": [
+        7.84,
+        71.3
+      ],
+      "hex": "11000004D20011012C004E02C9",
+      "decoded": {
+        "version": 1,
+        "state": "RUNNING",
+        "faultCode": 0,
+        "goodCount16": 1234,
+        "rejectCount16": 17,
+        "secondsInState": 300,
+        "analogs": [
+          7.8,
+          71.3
+        ]
+      }
+    },
+    {
+      "name": "faulted with a jammed bag, counters past 16 bits",
+      "state": "FAULT",
+      "faultCode": 102,
+      "goodCount": 70000,
+      "rejectCount": 65537,
+      "secondsInState": 95,
+      "analogs": [
+        0.0,
+        40.04
+      ],
+      "hex": "12006611700001005F00000190",
+      "decoded": {
+        "version": 1,
+        "state": "FAULT",
+        "faultCode": 102,
+        "goodCount16": 4464,
+        "rejectCount16": 1,
+        "secondsInState": 95,
+        "analogs": [
+          0.0,
+          40.0
+        ]
+      }
+    },
+    {
+      "name": "idle for longer than a uint16 holds, negative and missing analog",
+      "state": "IDLE",
+      "faultCode": 0,
+      "goodCount": 0,
+      "rejectCount": 0,
+      "secondsInState": 100000,
+      "analogs": [
+        -1.5,
+        null
+      ],
+      "hex": "10000000000000FFFFFFF18000",
+      "decoded": {
+        "version": 1,
+        "state": "IDLE",
+        "faultCode": 0,
+        "goodCount16": 0,
+        "rejectCount16": 0,
+        "secondsInState": 65535,
+        "analogs": [
+          -1.5,
+          null
+        ]
+      }
+    },
+    {
+      "name": "gateway cannot read the PLC, no analogs configured",
+      "state": "NO_DATA",
+      "faultCode": 0,
+      "goodCount": 65535,
+      "rejectCount": 0,
+      "secondsInState": 12,
+      "analogs": [],
+      "hex": "130000FFFF0000000C",
+      "decoded": {
+        "version": 1,
+        "state": "NO_DATA",
+        "faultCode": 0,
+        "goodCount16": 65535,
+        "rejectCount16": 0,
+        "secondsInState": 12,
+        "analogs": []
+      }
+    }
+  ]
+}
