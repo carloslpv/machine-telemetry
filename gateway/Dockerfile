@@ -17,4 +17,4 @@ COPY --from=build /workspace/target/gateway.jar gateway.jar
 USER app
 ENV GATEWAY_CONFIG=/etc/machine-telemetry/gateway.yaml GATEWAY_DATA_DIR=/data
 VOLUME /data
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=50", "--sun-misc-unsafe-memory-access=allow", "-jar", "gateway.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=50", "--sun-misc-unsafe-memory-access=allow", "--enable-native-access=ALL-UNNAMED", "-jar", "gateway.jar"]

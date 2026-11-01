@@ -111,7 +111,8 @@ public final class MqttUplink implements Uplink {
 				if (!running) {
 					return;
 				}
-				log.warn("MQTT {}: {} ({} messages waiting)", mqtt.uri(), ex.getMessage(), outbox.size());
+				Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+				log.warn("MQTT {}: {} ({} messages waiting)", mqtt.uri(), cause, outbox.size());
 				disconnectQuietly();
 				try {
 					Thread.sleep(backoff);

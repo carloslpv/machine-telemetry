@@ -82,6 +82,8 @@ class MqttIngest implements SmartLifecycle, MqttCallbackExtended {
 		MqttConnectOptions options = new MqttConnectOptions();
 		options.setCleanSession(false);
 		options.setAutomaticReconnect(true);
+		// Paho's default backs off to 128 s; a broker restart should cost seconds, not two minutes
+		options.setMaxReconnectDelay(10_000);
 		options.setKeepAliveInterval(30);
 		options.setMaxInflight(100);
 		if (StringUtils.hasText(properties.username())) {
