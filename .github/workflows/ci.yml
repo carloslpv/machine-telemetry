@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  plc-sim:
+    name: PLC simulator (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plc-sim
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  lorawan:
+    name: TTN payload formatter (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: node --test lorawan/ttn-formatter.test.js
+
+  gateway:
+    name: Gateway (Java)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - run: ./mvnw -B verify
+
+  platform:
+    name: Platform (Java, PostgreSQL in Testcontainers)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - run: ./mvnw -B verify
+
+  e2e:
+    name: End to end (compose, OPC UA + S7 + LoRaWAN)
+    runs-on: ubuntu-latest
+    needs: [plc-sim, gateway, platform]
+    steps:
+      - uses: actions/checkout@v5
+      - run: tools/e2e.sh
+      - if: failure()
+        run: docker compose logs --tail 200
+      - if: always()
+        run: docker compose down -v
