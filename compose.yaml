@@ -1,0 +1,151 @@
+# The whole system on one machine: two simulated S7-1200s, the edge gateway reading one over OPC UA and the other
+# over S7, a simulated LoRaWAN device posting like a TTN webhook, the broker, the platform and Grafana.
+# Settings come from .env (see .env.example). Grafana: http://localhost:3000, API: http://localhost:8080.
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: telemetry
+      POSTGRES_USER: telemetry
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set GRAFANA_DB_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql.in:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemetry -d telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # writes the Mosquitto password file from .env on every start, so changing a password is editing .env
+  mosquitto-users:
+    image: eclipse-mosquitto:2
+    environment:
+      MQTT_PLATFORM_PASSWORD: ${MQTT_PLATFORM_PASSWORD:?set MQTT_PLATFORM_PASSWORD in .env}
+      MQTT_GATEWAY_PASSWORD: ${MQTT_GATEWAY_PASSWORD:?set MQTT_GATEWAY_PASSWORD in .env}
+      MQTT_ADMIN_PASSWORD: ${MQTT_ADMIN_PASSWORD:?set MQTT_ADMIN_PASSWORD in .env}
+    volumes:
+      - mosquitto-auth:/mosquitto/auth
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        rm -f /mosquitto/auth/passwd && touch /mosquitto/auth/passwd
+        mosquitto_passwd -b /mosquitto/auth/passwd platform "$$MQTT_PLATFORM_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwd gw-joacaba-01 "$$MQTT_GATEWAY_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwd admin "$$MQTT_ADMIN_PASSWORD"
+        chown 1883:1883 /mosquitto/auth/passwd && chmod 0700 /mosquitto/auth/passwd
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    depends_on:
+      mosquitto-users:
+        condition: service_completed_successfully
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto:/mosquitto/config:ro
+      - mosquitto-auth:/mosquitto/auth
+      - mosquitto-data:/mosquitto/data
+
+  platform:
+    build: ./platform
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      DB_URL: jdbc:postgresql://postgres:5432/telemetry
+      DB_USER: telemetry
+      DB_PASSWORD: ${DB_PASSWORD}
+      MQTT_URI: tcp://mosquitto:1883
+      MQTT_USER: platform
+      MQTT_PASSWORD: ${MQTT_PLATFORM_PASSWORD}
+      PLATFORM_API_KEY: ${PLATFORM_API_KEY:?set PLATFORM_API_KEY in .env}
+      TTN_WEBHOOK_TOKEN: ${TTN_WEBHOOK_TOKEN:?set TTN_WEBHOOK_TOKEN in .env}
+      TTN_APPLICATION_ID: ${TTN_APPLICATION_ID:-tcc-carlos}
+    ports:
+      - "8080:8080"
+
+  # two simulated CPUs; each serves OPC UA on 4840 and S7 on 1102
+  plc-ens01:
+    build: ./plc-sim
+    restart: unless-stopped
+    environment:
+      PLC_NAME: ENS-01
+      PLC_SEED: "1"
+  plc-ens02:
+    build: ./plc-sim
+    restart: unless-stopped
+    environment:
+      PLC_NAME: ENS-02
+      PLC_SEED: "2"
+
+  gateway:
+    build: ./gateway
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - plc-ens01
+      - plc-ens02
+    environment:
+      GATEWAY_ID: gw-joacaba-01
+      GATEWAY_SITE: joacaba
+      PLC1_ENDPOINT: opc.tcp://plc-ens01:4840
+      PLC2_HOST: plc-ens02
+      PLC2_PORT: "1102"
+      MQTT_URI: tcp://mosquitto:1883
+      MQTT_USER: gw-joacaba-01
+      MQTT_PASSWORD: ${MQTT_GATEWAY_PASSWORD}
+    volumes:
+      - ./gateway/gateway.example.yaml:/etc/machine-telemetry/gateway.yaml:ro
+      - gateway-data:/data
+
+  # a third machine far from the network, reporting over LoRaWAN; posts what TTN's webhook would
+  lorawan-device:
+    build: ./plc-sim
+    restart: unless-stopped
+    depends_on:
+      - platform
+    entrypoint: ["python", "/tools/lorawan_device.py"]
+    environment:
+      WEBHOOK_URL: http://platform:8080/api/v1/integrations/ttn/uplink
+      TTN_WEBHOOK_TOKEN: ${TTN_WEBHOOK_TOKEN}
+      TTN_APPLICATION_ID: ${TTN_APPLICATION_ID:-tcc-carlos}
+      DEV_EUI: 70B3D57ED0000001
+      UPLINK_INTERVAL_S: "60"
+      PYTHONPATH: /app
+    volumes:
+      - ./tools:/tools:ro
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_DEFAULT_LANGUAGE: pt-BR
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/maquinas.json
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data:
+  mosquitto-auth:
+  mosquitto-data:
+  gateway-data:
+  grafana-data:

@@ -1,0 +1,12 @@
+# The platform reads everything.
+user platform
+topic read mt/#
+
+# Operator account, for tools/backfill.py and for debugging with mosquitto_sub.
+user admin
+topic readwrite mt/#
+
+# One entry per gateway: it may publish only for its own site, so a gateway's password cannot fake another
+# site's machines. The user name is the gateway id.
+user gw-joacaba-01
+topic write mt/joacaba/#
