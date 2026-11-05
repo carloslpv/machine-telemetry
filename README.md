@@ -8,7 +8,7 @@ internet instável e, onde não há rede, por LoRaWAN.
 
 ![Painel no Grafana: estado atual, OEE com disponibilidade, performance e qualidade, linha do tempo de estados, produção por hora, paradas por causa, motor e últimas paradas](docs/img/dashboard.png)
 
-*Painel com 8 horas de uma ensacadeira simulada. O OEE de 65 % sai de 73 % de disponibilidade, 90 % de performance
+*Painel com 8 horas de uma ensacadeira simulada. O OEE de 66 % sai de 75 % de disponibilidade, 90 % de performance
 e 98 % de qualidade; as paradas por causa mostram onde está a perda.*
 
 ## Origem
