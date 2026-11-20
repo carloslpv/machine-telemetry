@@ -277,7 +277,7 @@
         "uid": "telemetry"
       },
       "type": "stat",
-      "title": "Produção no período",
+      "title": "Produção e tempo rodando",
       "gridPos": {
         "x": 18,
         "y": 0,
@@ -294,7 +294,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT good AS \"Sacos bons\", reject AS \"Refugos\" FROM machine_oee('$machine', $__timeFrom(), $__timeTo())"
+          "rawSql": "SELECT good AS \"Sacos bons\", reject AS \"Refugos\", running_seconds AS \"Tempo rodando\" FROM machine_oee('$machine', $__timeFrom(), $__timeTo())"
         }
       ],
       "fieldConfig": {
@@ -318,6 +318,29 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Tempo rodando"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
                 }
               }
             ]

@@ -1,6 +1,7 @@
 # The whole system on one machine: two simulated S7-1200s, the edge gateway reading one over OPC UA and the other
 # over S7, a simulated LoRaWAN device posting like a TTN webhook, the broker, the platform and Grafana.
-# Settings come from .env (see .env.example). Grafana: http://localhost:3000, API: http://localhost:8080.
+# Settings come from .env (see .env.example). Grafana: http://localhost:3000, API: http://localhost:8080, broker on
+# 1883; MQTT_PORT, PLATFORM_PORT and GRAFANA_PORT move them, for running next to another stack that uses those ports.
 services:
   postgres:
     image: postgres:18
@@ -27,6 +28,8 @@ services:
       MQTT_PLATFORM_PASSWORD: ${MQTT_PLATFORM_PASSWORD:?set MQTT_PLATFORM_PASSWORD in .env}
       MQTT_GATEWAY_PASSWORD: ${MQTT_GATEWAY_PASSWORD:?set MQTT_GATEWAY_PASSWORD in .env}
       MQTT_ADMIN_PASSWORD: ${MQTT_ADMIN_PASSWORD:?set MQTT_ADMIN_PASSWORD in .env}
+      # the ESP32 node (esp32-node); optional, without it the node cannot log in
+      MQTT_NODE_PASSWORD: ${MQTT_NODE_PASSWORD:-}
     volumes:
       - mosquitto-auth:/mosquitto/auth
     command:
@@ -38,6 +41,9 @@ services:
         mosquitto_passwd -b /mosquitto/auth/passwd platform "$$MQTT_PLATFORM_PASSWORD"
         mosquitto_passwd -b /mosquitto/auth/passwd gw-joacaba-01 "$$MQTT_GATEWAY_PASSWORD"
         mosquitto_passwd -b /mosquitto/auth/passwd admin "$$MQTT_ADMIN_PASSWORD"
+        if [ -n "$$MQTT_NODE_PASSWORD" ]; then
+          mosquitto_passwd -b /mosquitto/auth/passwd node-maleta-01 "$$MQTT_NODE_PASSWORD"
+        fi
         chown 1883:1883 /mosquitto/auth/passwd && chmod 0700 /mosquitto/auth/passwd
 
   mosquitto:
@@ -47,7 +53,7 @@ services:
       mosquitto-users:
         condition: service_completed_successfully
     ports:
-      - "1883:1883"
+      - "${MQTT_PORT:-1883}:1883"
     volumes:
       - ./mosquitto:/mosquitto/config:ro
       - mosquitto-auth:/mosquitto/auth
@@ -73,7 +79,7 @@ services:
       TTN_WEBHOOK_TOKEN: ${TTN_WEBHOOK_TOKEN:?set TTN_WEBHOOK_TOKEN in .env}
       TTN_APPLICATION_ID: ${TTN_APPLICATION_ID:-tcc-carlos}
     ports:
-      - "8080:8080"
+      - "${PLATFORM_PORT:-8080}:8080"
 
   # two simulated CPUs; each serves OPC UA on 4840 and S7 on 1102
   plc-ens01:
@@ -141,7 +147,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
 
 volumes:
   postgres-data:

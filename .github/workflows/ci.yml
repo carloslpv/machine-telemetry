@@ -62,8 +62,28 @@ jobs:
           cache: maven
       - run: ./mvnw -B verify
 
+  esp32-node:
+    name: ESP32 node firmware (ESP-IDF)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4
+          target: esp32
+          path: esp32-node
+
+  esp32-node-tests:
+    name: ESP32 node logic (host, ASan + UBSan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: cmake -S esp32-node/components/node_logic/test -B build/node-test
+      - run: cmake --build build/node-test
+      - run: ./build/node-test/node_test
+
   e2e:
-    name: End to end (compose, OPC UA + S7 + LoRaWAN)
+    name: End to end (compose, OPC UA + S7 + LoRaWAN + ESP32 node)
     runs-on: ubuntu-latest
     needs: [plc-sim, gateway, platform]
     steps:

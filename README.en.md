@@ -23,6 +23,7 @@ TagoIO, computing states, stops and OEE.
 |---|---|
 | [plc-sim](plc-sim) | simulated S7-1200 (Python) running a bagging machine, serving one data block over OPC UA and S7 |
 | [gateway](gateway) | edge gateway (Java 25, no framework): OPC UA (Eclipse Milo) or an S7 client written from the protocol, state detection, windowed aggregates, SQLite outbox, MQTT or a LoRaWAN modem driven by AT commands |
+| [esp32-node](esp32-node) | ESP32 firmware (ESP-IDF, C) for a machine without a PLC: motor current from a clamp-on SCT-013 through an ADS1115, running/stopped state, the gateway's MQTT contract |
 | [platform](platform) | Spring Boot 4.1 and PostgreSQL 18: MQTT and The Things Network ingestion, state history, stops, OEE, REST API |
 | [lorawan](lorawan) | payload format, TTN formatter, test vectors shared by the encoder, the formatter and the decoder |
 | [grafana](grafana) | provisioned dashboard |
@@ -36,8 +37,10 @@ docker compose up -d --build
 ```
 
 Grafana at <http://localhost:3000>, API at <http://localhost:8080/api/v1/machines> with `X-API-Key`.
-`tools/backfill.py` generates hours of history; `tools/e2e.sh` brings everything up and checks that the OPC UA, S7
-and LoRaWAN paths delivered.
+`tools/backfill.py` generates hours of history; `tools/e2e.sh` brings everything up and checks that the OPC UA, S7,
+LoRaWAN and ESP32 node paths delivered. The demo data includes machine `MAQ-01` (site `maleta`) for the
+[esp32-node](esp32-node); with `MQTT_NODE_PASSWORD` in `.env`, an ESP32 with the current clamp shows up on the same
+dashboard.
 
 ## Design decisions
 
@@ -58,7 +61,8 @@ and LoRaWAN paths delivered.
 
 ## Tests
 
-74 automated tests (simulator 10, gateway 37, platform 20, TTN formatter 6, end to end 1), all run by GitHub Actions.
+86 automated tests (simulator 10, gateway 37, platform 20, TTN formatter 6, ESP32 node logic 12, end to end 1), all
+run by GitHub Actions. The ESP32 firmware is also built in CI with ESP-IDF 5.4.
 
 ## Limitations
 

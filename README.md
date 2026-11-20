@@ -42,6 +42,8 @@ elas ficam paradas. Fábricas de ração, frigoríficos, cerealistas, metalúrgi
 - **Hardware barato na borda.** Um Raspberry Pi ou uma TV Box com Linux, como no TCC.
 - **Não perde dado quando a internet cai.** O gateway guarda tudo em disco e envia depois, na ordem.
 - **Máquina longe da rede.** Silo, moega, casa de bombas: LoRaWAN pela The Things Network.
+- **Máquina sem CLP.** Um ESP32 com um sensor de corrente de garra no cabo do motor diz se ela está rodando ou
+  parada, sem cortar fio nem abrir o programa de ninguém ([esp32-node](esp32-node)).
 - **Números que a gerência usa.** OEE com os três fatores, ranking de paradas por causa, produção por hora.
 
 ## Arquitetura
@@ -55,8 +57,10 @@ flowchart LR
     PLC1 -- OPC UA --> GW
     PLC2 -- S7 --> GW
     PLC3["CLP distante"] --> LGW["Gateway LoRaWAN<br/>módulo por comandos AT"]
+    MOT["Máquina sem CLP<br/>sensor de corrente SCT-013"] --> NODE["ESP32<br/>esp32-node"]
   end
   GW -- "MQTT QoS 1" --> MQ[(Mosquitto)]
+  NODE -- "MQTT QoS 1" --> MQ
   LGW -. LoRaWAN .-> TTN["The Things Network"]
   TTN -- webhook --> P
   MQ --> P["Plataforma<br/>Spring Boot"]
@@ -69,6 +73,7 @@ flowchart LR
 |---|---|
 | [plc-sim](plc-sim) | S7-1200 simulado (Python): uma ensacadeira com paradas, falhas, perda de velocidade e refugo, servindo o mesmo DB por OPC UA e por S7 |
 | [gateway](gateway) | gateway de borda (Java 25, sem framework): lê o CLP, detecta estados, agrega, fila local, MQTT ou LoRaWAN |
+| [esp32-node](esp32-node) | firmware ESP32 (ESP-IDF, C) para máquina sem CLP: corrente do motor por SCT-013 e ADS1115, estado rodando/parada, mesmo contrato MQTT do gateway |
 | [platform](platform) | plataforma (Spring Boot 4.1, PostgreSQL 18): ingestão MQTT e TTN, histórico de estados, paradas, OEE, API |
 | [lorawan](lorawan) | formato do payload, formatador para a TTN e vetores de teste compartilhados |
 | [grafana](grafana) | painel provisionado |
@@ -96,7 +101,11 @@ python tools/backfill.py --hours 8 --password "<MQTT_ADMIN_PASSWORD>"
 docker compose up -d --build
 ```
 
-`tools/e2e.sh` sobe tudo e confere pela API que os três caminhos (OPC UA, S7, LoRaWAN) entregaram dados.
+`tools/e2e.sh` sobe tudo e confere pela API que os quatro caminhos (OPC UA, S7, LoRaWAN e o ESP32) entregaram dados.
+
+Os dados de demonstração já trazem a máquina `MAQ-01` (site `maleta`) para o [esp32-node](esp32-node): com
+`MQTT_NODE_PASSWORD` no `.env`, um ESP32 com o sensor de corrente aparece no mesmo painel, com estado, paradas,
+corrente do motor e tempo rodando.
 
 ## Decisões técnicas
 
@@ -130,7 +139,8 @@ docker compose up -d --build
 | gateway | 37 | quadros S7, CPU falsa que força leitura dividida, estados e agregação, fila (ordem, reinício, limite), MQTT com broker que cai e volta, diálogo AT (OK, busy, erro, dois RxConfig), payload |
 | platform | 20 | uma hora roteirizada com OEE conferido à mão, duplicatas, site errado, lacunas, atraso, estado perdido, webhook da TTN, ingestão MQTT |
 | lorawan | 6 | formatador da TTN contra os mesmos vetores do gateway e da plataforma |
-| ponta a ponta | 1 | compose inteiro: OPC UA, S7 e LoRaWAN até a API |
+| esp32-node | 12 | RMS com offset, detecção de estado com histerese, fila cheia, sequência entre reinícios, JSON do contrato (no PC, com ASan e UBSan); o firmware compila no CI com o ESP-IDF 5.4 |
+| ponta a ponta | 1 | compose inteiro: OPC UA, S7, LoRaWAN e mensagens do ESP32 até a API |
 
 O CI do GitHub Actions roda todos.
 

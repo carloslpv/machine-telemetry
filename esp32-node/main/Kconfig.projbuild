@@ -1,0 +1,175 @@
+menu "machine-telemetry node"
+
+    menu "Network"
+
+        config MT_WIFI_SSID
+            string "Wi-Fi SSID"
+            default "my-network"
+
+        config MT_WIFI_PASSWORD
+            string "Wi-Fi password"
+            default ""
+
+        config MT_MQTT_BROKER_URI
+            string "MQTT broker URI"
+            default "mqtt://192.168.0.10:1883"
+            help
+                The machine-telemetry Mosquitto. mqtt:// for plain TCP on a local network, mqtts:// over the
+                internet.
+
+        config MT_MQTT_PASSWORD
+            string "MQTT password"
+            default ""
+            help
+                The node logs in with its gateway id as user name, which is what mosquitto/acl expects.
+
+        config MT_NTP_SERVER
+            string "NTP server"
+            default "pool.ntp.org"
+            help
+                Nothing is published before the clock is set: every message carries the time it happened.
+
+    endmenu
+
+    menu "Identity"
+
+        config MT_TOPIC_PREFIX
+            string "Topic prefix"
+            default "mt"
+
+        config MT_SITE
+            string "Site"
+            default "maleta"
+            help
+                Must be the machine's site on the platform, and the site the broker ACL lets this node write to.
+
+        config MT_GATEWAY_ID
+            string "Gateway id (also the MQTT user name)"
+            default "node-maleta-01"
+
+        config MT_MACHINE_ID
+            string "Machine id"
+            default "MAQ-01"
+            help
+                Must exist in the platform's machine table.
+
+        config MT_ANALOG_NAME
+            string "Name of the current in the telemetry"
+            default "motor-current"
+            help
+                "motor-current" is what the "Motor" panel of the Grafana dashboard plots.
+
+    endmenu
+
+    menu "Current sensor (SCT-013 on an ADS1115)"
+
+        config MT_I2C_SDA_GPIO
+            int "I2C SDA GPIO"
+            default 21
+
+        config MT_I2C_SCL_GPIO
+            int "I2C SCL GPIO"
+            default 22
+
+        config MT_ADS1115_RDY_GPIO
+            int "GPIO wired to the ADS1115 ALERT/RDY pin"
+            default 19
+            help
+                The ADS1115 pulses this pin at the end of each of its 860 conversions per second, so the ESP32 reads
+                each sample exactly once.
+
+        config MT_ADS1115_ADDRESS
+            hex "ADS1115 I2C address"
+            default 0x48
+            help
+                0x48 with ADDR to GND, which is how most breakout boards come.
+
+        choice MT_ADS1115_RANGE
+            prompt "ADS1115 input range"
+            default MT_ADS1115_RANGE_2048
+
+            config MT_ADS1115_RANGE_2048
+                bool "+-2.048 V (an SCT-013 at full scale, 30 A on the 030)"
+
+            config MT_ADS1115_RANGE_1024
+                bool "+-1.024 V (twice the resolution, clips above about 21 A on the 030)"
+
+            config MT_ADS1115_RANGE_512
+                bool "+-0.512 V (small loads only, clips above about 10 A on the 030)"
+        endchoice
+
+        config MT_CT_AMPS_PER_VOLT
+            int "Clamp rating (A per volt of output)"
+            default 30
+            help
+                The number after SCT-013-: 30 for the 030 (1 V at 30 A), 5 for the 005, 100 for the 100 with a 33 ohm
+                burden giving 1 V at 100 A.
+
+        config MT_CT_TURNS
+            int "Turns of the wire through the clamp"
+            range 1 20
+            default 1
+            help
+                For a small load such as a fan, passing the wire three times through the clamp triples the signal.
+                The reading is divided back, so the current shown is still the real one.
+
+    endmenu
+
+    menu "Machine state"
+
+        config MT_RUN_THRESHOLD_MA
+            int "Running at or above (mA)"
+            default 100
+
+        config MT_STOP_THRESHOLD_MA
+            int "Stopped below (mA)"
+            default 60
+            help
+                Lower than the running threshold, so a current hovering at the limit does not flap.
+
+        config MT_RUN_SECONDS
+            int "Seconds above the threshold before counting as running"
+            range 1 60
+            default 2
+
+        config MT_STOP_SECONDS
+            int "Seconds below the threshold before counting as stopped"
+            range 1 600
+            default 3
+
+        config MT_OVERCURRENT_MA
+            int "Fault (overcurrent) at or above (mA), 0 for off"
+            default 0
+
+        config MT_OVERCURRENT_FAULT_CODE
+            int "Fault code for overcurrent"
+            default 201
+            help
+                201 is "Sobrecarga do motor" in the demo fault codes.
+
+        config MT_TELEMETRY_SECONDS
+            int "Telemetry window (seconds)"
+            range 5 600
+            default 10
+
+        config MT_OUTBOX_CAPACITY
+            int "Messages kept while offline"
+            range 8 2048
+            default 360
+            help
+                360 is an hour of 10 s telemetry, or more when the machine is stopped and nothing changes. Each
+                message takes about 100 bytes of RAM.
+
+        config MT_LED_GPIO
+            int "LED on while the machine runs (-1 for none)"
+            default 2
+
+        config MT_LOG_CURRENT
+            bool "Log the current every second"
+            default y
+            help
+                Handy for choosing the thresholds: watch the serial monitor with the machine off and on.
+
+    endmenu
+
+endmenu
