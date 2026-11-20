@@ -105,7 +105,7 @@ docker compose up -d --build
 
 Os dados de demonstração já trazem a máquina `MAQ-01` (site `maleta`) para o [esp32-node](esp32-node): com
 `MQTT_NODE_PASSWORD` no `.env`, um ESP32 com o sensor de corrente aparece no mesmo painel, com estado, paradas,
-corrente do motor e horas rodando.
+corrente do motor e tempo rodando.
 
 ## Decisões técnicas
 

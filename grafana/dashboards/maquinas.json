@@ -294,7 +294,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT good AS \"Sacos bons\", reject AS \"Refugos\", running_seconds / 3600 AS \"Horas rodando\" FROM machine_oee('$machine', $__timeFrom(), $__timeTo())"
+          "rawSql": "SELECT good AS \"Sacos bons\", reject AS \"Refugos\", running_seconds AS \"Tempo rodando\" FROM machine_oee('$machine', $__timeFrom(), $__timeTo())"
         }
       ],
       "fieldConfig": {
@@ -325,9 +325,13 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Horas rodando"
+              "options": "Tempo rodando"
             },
             "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
               {
                 "id": "decimals",
                 "value": 1
