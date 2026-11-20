@@ -27,6 +27,9 @@ Once per telemetry window (10 s by default).
 
 Counters are the raw PLC values, unsigned; the platform takes differences modulo `2^counterBits`.
 
+The [ESP32 node](../esp32-node) publishes the same messages for a machine without a PLC. It has no piece counters,
+so `goodCount` and `rejectCount` are `null`, and its only analog is the motor current (`motor-current`, in amperes).
+
 ## `<prefix>/<site>/gateway/<gatewayId>/status`
 
 Retained. `online` when the gateway connects, `offline` when it stops, and `offline` again from the broker (last

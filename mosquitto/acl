@@ -10,3 +10,7 @@ topic readwrite mt/#
 # site's machines. The user name is the gateway id.
 user gw-joacaba-01
 topic write mt/joacaba/#
+
+# The ESP32 node of esp32-node, on the demo case's site. The user name is its gateway id.
+user node-maleta-01
+topic write mt/maleta/#
